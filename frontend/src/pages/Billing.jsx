@@ -60,17 +60,61 @@ const Billing = () => {
           logging: false,
           letterRendering: true,
           onclone: (clonedDoc) => {
-            // Find all elements in the cloned document and force standard colors
-            // because html2canvas/html2pdf can't parse oklch (Tailwind 4)
+            // ── Fix: Strip oklch() from all stylesheets ──
+            // html2canvas parses raw CSS rules and crashes on oklch() (Tailwind v4).
+            // We replace oklch(...) with a safe fallback in every stylesheet rule.
+            const oklchRegex = /oklch\([^)]*\)/gi;
+            const fallbackColor = '#6b7280'; // neutral gray fallback
+
+            // 1. Rewrite all <style> tags in the cloned document
+            const styleTags = clonedDoc.querySelectorAll('style');
+            styleTags.forEach((styleTag) => {
+              if (styleTag.textContent && oklchRegex.test(styleTag.textContent)) {
+                styleTag.textContent = styleTag.textContent.replace(oklchRegex, fallbackColor);
+              }
+              // Reset regex lastIndex since we use the 'g' flag
+              oklchRegex.lastIndex = 0;
+            });
+
+            // 2. Also rewrite any cssRules that might be in adopted stylesheets
+            try {
+              for (const sheet of clonedDoc.styleSheets) {
+                try {
+                  const rules = sheet.cssRules || sheet.rules;
+                  if (!rules) continue;
+                  for (let i = 0; i < rules.length; i++) {
+                    const rule = rules[i];
+                    if (rule.cssText && oklchRegex.test(rule.cssText)) {
+                      const fixedCss = rule.cssText.replace(oklchRegex, fallbackColor);
+                      try {
+                        sheet.deleteRule(i);
+                        sheet.insertRule(fixedCss, i);
+                      } catch (_) {
+                        // Some rules (like @import) can't be replaced, skip them
+                      }
+                    }
+                    oklchRegex.lastIndex = 0;
+                  }
+                } catch (_) {
+                  // Cross-origin stylesheets can't be accessed, skip them
+                }
+              }
+            } catch (_) {
+              // Fallback: if styleSheets API fails, we already handled <style> tags
+            }
+
+            // 3. Force standard colors on all elements as an extra safety net
             const elements = clonedDoc.getElementsByTagName('*');
             for (let i = 0; i < elements.length; i++) {
               const el = elements[i];
               if (el instanceof HTMLElement) {
-                const style = window.getComputedStyle(el);
-                if (style.color && style.color.includes('oklch')) el.style.color = '#111827';
-                if (style.backgroundColor && style.backgroundColor.includes('oklch')) el.style.backgroundColor = 'transparent';
-                if (style.borderColor && style.borderColor.includes('oklch')) el.style.borderColor = '#e5e7eb';
-                if (style.outlineColor && style.outlineColor.includes('oklch')) el.style.outlineColor = 'transparent';
+                const computed = clonedDoc.defaultView
+                  ? clonedDoc.defaultView.getComputedStyle(el)
+                  : window.getComputedStyle(el);
+                if (computed.color && computed.color.includes('oklch')) el.style.color = '#111827';
+                if (computed.backgroundColor && computed.backgroundColor.includes('oklch')) el.style.backgroundColor = 'transparent';
+                if (computed.borderColor && computed.borderColor.includes('oklch')) el.style.borderColor = '#e5e7eb';
+                if (computed.outlineColor && computed.outlineColor.includes('oklch')) el.style.outlineColor = 'transparent';
               }
             }
           }

@@ -4,8 +4,32 @@ import Expense from '../models/Expense.js';
 // @route   GET /api/expenses
 // @access  Private
 export const getExpenses = async (req, res) => {
+  const { startDate, endDate } = req.query;
+  
+  let query = { userId: req.user._id };
+
+  if (startDate && endDate) {
+    // Use provided date range, ensuring the end date includes the full day
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    
+    query.date = {
+      $gte: new Date(startDate),
+      $lte: end
+    };
+  } else {
+    // Default to current month
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    query.date = {
+      $gte: firstDay,
+      $lte: lastDay
+    };
+  }
+
   try {
-    const expenses = await Expense.find({ userId: req.user._id }).sort({ date: -1 });
+    const expenses = await Expense.find(query).sort({ date: -1 });
     res.json(expenses);
   } catch (error) {
     res.status(500).json({ message: error.message });

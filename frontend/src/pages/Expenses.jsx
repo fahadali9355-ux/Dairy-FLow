@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { Plus, Trash2, ArrowUpCircle, ArrowDownCircle, Info, Wallet } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 const Expenses = () => {
   const [expenses, setExpenses] = useState([]);
@@ -15,11 +15,17 @@ const Expenses = () => {
     date: format(new Date(), 'yyyy-MM-dd')
   });
 
+  const [filterDates, setFilterDates] = useState({
+    start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+    end: format(endOfMonth(new Date()), 'yyyy-MM-dd')
+  });
+
   const categories = ['Chara', 'Medicine', 'Labor', 'Bills', 'Other'];
 
   const fetchExpenses = async () => {
     try {
-      const { data } = await api.get('/expenses');
+      setLoading(true);
+      const { data } = await api.get(`/expenses?startDate=${filterDates.start}&endDate=${filterDates.end}`);
       setExpenses(data);
     } catch (error) {
       console.error(error);
@@ -30,7 +36,7 @@ const Expenses = () => {
 
   useEffect(() => {
     fetchExpenses();
-  }, []);
+  }, [filterDates]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,6 +77,38 @@ const Expenses = () => {
           className="btn-primary flex items-center"
         >
           <Plus className="w-5 h-5 mr-1" /> Add Record
+        </button>
+      </div>
+
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap items-center gap-6">
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-semibold text-gray-600">From:</label>
+          <input 
+            type="date" 
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 outline-none" 
+            value={filterDates.start} 
+            onChange={e => setFilterDates({...filterDates, start: e.target.value})}
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-semibold text-gray-600">To:</label>
+          <input 
+            type="date" 
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 outline-none" 
+            value={filterDates.end} 
+            onChange={e => setFilterDates({...filterDates, end: e.target.value})}
+          />
+        </div>
+        <button 
+          onClick={() => {
+            setFilterDates({
+              start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+              end: format(endOfMonth(new Date()), 'yyyy-MM-dd')
+            });
+          }}
+          className="text-sm font-medium text-primary-600 hover:text-primary-700 bg-primary-50 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          This Month
         </button>
       </div>
 

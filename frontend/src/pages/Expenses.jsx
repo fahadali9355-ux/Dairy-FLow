@@ -82,6 +82,26 @@ const Expenses = () => {
 
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap items-center gap-6">
         <div className="flex items-center gap-3">
+          <label className="text-sm font-semibold text-gray-600">Quick Month:</label>
+          <input 
+            type="month" 
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 outline-none" 
+            onChange={(e) => {
+              if (e.target.value) {
+                const [year, month] = e.target.value.split('-');
+                const date = new Date(year, month - 1);
+                setFilterDates({
+                  start: format(startOfMonth(date), 'yyyy-MM-dd'),
+                  end: format(endOfMonth(date), 'yyyy-MM-dd')
+                });
+              }
+            }}
+          />
+        </div>
+
+        <div className="h-8 w-px bg-gray-200 hidden md:block"></div>
+
+        <div className="flex items-center gap-3">
           <label className="text-sm font-semibold text-gray-600">From:</label>
           <input 
             type="date" 
